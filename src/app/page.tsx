@@ -22,7 +22,7 @@ export default function HomePage() {
       {/* Intro */}
       <div className="px-4 pt-8 pb-4 max-w-2xl mx-auto">
         <p className="text-xs font-bold uppercase tracking-widest text-amber-500 mb-2">
-          Candela Community · Richmond, TX
+          Candela
         </p>
         <h1 className="text-3xl font-bold text-gray-900 leading-tight mb-3">
           Can You Guess the Scent?

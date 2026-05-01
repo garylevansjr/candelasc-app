@@ -1,7 +1,6 @@
 'use server'
 
 import { cookies } from 'next/headers'
-import { redirect } from 'next/navigation'
 import { createClient } from '@supabase/supabase-js'
 
 export async function submitGuess(data: {
@@ -9,11 +8,11 @@ export async function submitGuess(data: {
   email: string
   propertySlug: string
   scentGuess: string
-}): Promise<{ error: string } | never> {
+}): Promise<{ success: boolean; error?: string }> {
   const { name, email, propertySlug, scentGuess } = data
 
   if (!name.trim() || !email.trim() || !scentGuess || !propertySlug) {
-    return { error: 'invalid_input' }
+    return { success: false, error: 'invalid_input' }
   }
 
   const supabase = createClient(
@@ -42,10 +41,10 @@ export async function submitGuess(data: {
   if (error) {
     console.error('Supabase insert error:', error.code, error.message)
     if (error.code === '23505') {
-      return { error: 'already_guessed' }
+      return { success: false, error: 'already_guessed' }
     }
-    return { error: 'server_error' }
+    return { success: false, error: 'server_error' }
   }
 
-  redirect('/thank-you')
+  return { success: true }
 }

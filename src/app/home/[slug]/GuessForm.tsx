@@ -1,6 +1,7 @@
 'use client'
 
 import { useState, useTransition } from 'react'
+import { useRouter } from 'next/navigation'
 import { submitGuess } from '@/app/actions'
 import { SCENTS } from '@/lib/homes'
 
@@ -15,6 +16,7 @@ export default function GuessForm({ propertySlug, initialUser }: Props) {
   const [email, setEmail] = useState(initialUser?.email ?? '')
   const [status, setStatus] = useState<'idle' | 'error' | 'already_guessed'>('idle')
   const [isPending, startTransition] = useTransition()
+  const router = useRouter()
 
   const canSubmit = Boolean(selectedScent && name.trim() && email.trim())
 
@@ -30,9 +32,11 @@ export default function GuessForm({ propertySlug, initialUser }: Props) {
           propertySlug,
           scentGuess: selectedScent!,
         })
-        if (result?.error === 'already_guessed') {
+        if (result.success) {
+          router.push('/thank-you')
+        } else if (result.error === 'already_guessed') {
           setStatus('already_guessed')
-        } else if (result?.error) {
+        } else {
           setStatus('error')
         }
       } catch {
