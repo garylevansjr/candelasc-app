@@ -13,7 +13,7 @@ export default function GuessForm({ propertySlug, initialUser }: Props) {
   const [selectedScent, setSelectedScent] = useState<string | null>(null)
   const [name, setName] = useState(initialUser?.name ?? '')
   const [email, setEmail] = useState(initialUser?.email ?? '')
-  const [status, setStatus] = useState<'idle' | 'success' | 'error' | 'already_guessed'>('idle')
+  const [status, setStatus] = useState<'idle' | 'error' | 'already_guessed'>('idle')
   const [isPending, startTransition] = useTransition()
 
   const canSubmit = Boolean(selectedScent && name.trim() && email.trim())
@@ -23,40 +23,22 @@ export default function GuessForm({ propertySlug, initialUser }: Props) {
     if (!canSubmit) return
 
     startTransition(async () => {
-      const result = await submitGuess({
-        name,
-        email,
-        propertySlug,
-        scentGuess: selectedScent!,
-      })
-      if (result.success) {
-        setStatus('success')
-      } else if (result.error === 'already_guessed') {
-        setStatus('already_guessed')
-      } else {
+      try {
+        const result = await submitGuess({
+          name,
+          email,
+          propertySlug,
+          scentGuess: selectedScent!,
+        })
+        if (result?.error === 'already_guessed') {
+          setStatus('already_guessed')
+        } else if (result?.error) {
+          setStatus('error')
+        }
+      } catch {
         setStatus('error')
       }
     })
-  }
-
-  if (status === 'success') {
-    return (
-      <div className="flex flex-col items-center justify-center py-16 text-center">
-        <div className="w-16 h-16 bg-amber-100 rounded-full flex items-center justify-center mb-5">
-          <svg className="w-8 h-8 text-amber-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
-          </svg>
-        </div>
-        <h2 className="text-2xl font-bold text-gray-900 mb-2">Guess Submitted!</h2>
-        <p className="text-gray-600 mb-1">
-          You guessed{' '}
-          <span className="font-semibold text-amber-600">{selectedScent}</span>
-        </p>
-        <p className="text-gray-400 text-sm mt-3">
-          Good luck — we&apos;ll pick a winner after the tour!
-        </p>
-      </div>
-    )
   }
 
   return (
@@ -128,7 +110,7 @@ export default function GuessForm({ propertySlug, initialUser }: Props) {
       {/* Status Messages */}
       {status === 'already_guessed' && (
         <div className="bg-orange-50 border border-orange-200 rounded-xl px-4 py-3 text-orange-700 text-sm font-medium text-center">
-          You&apos;ve already submitted a guess for this home!
+          You&apos;ve already submitted a guess for this home.
         </div>
       )}
       {status === 'error' && (

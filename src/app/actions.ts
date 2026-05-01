@@ -1,31 +1,36 @@
 'use server'
 
 import { cookies } from 'next/headers'
+import { redirect } from 'next/navigation'
 import { createClient } from '@supabase/supabase-js'
-
-const supabase = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL!,
-  process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
-)
 
 export async function submitGuess(data: {
   name: string
   email: string
   propertySlug: string
   scentGuess: string
-}): Promise<{ success: boolean; error?: string }> {
+}): Promise<{ error: string } | never> {
   const { name, email, propertySlug, scentGuess } = data
 
   if (!name.trim() || !email.trim() || !scentGuess || !propertySlug) {
-    return { success: false, error: 'invalid_input' }
+    return { error: 'invalid_input' }
   }
 
-  const cookieStore = await cookies()
-  cookieStore.set(
-    'candelasc_user',
-    JSON.stringify({ name: name.trim(), email: email.trim().toLowerCase() }),
-    { maxAge: 60 * 60 * 24 * 7, path: '/', sameSite: 'lax' }
+  const supabase = createClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
   )
+
+  try {
+    const cookieStore = await cookies()
+    cookieStore.set(
+      'candelasc_user',
+      JSON.stringify({ name: name.trim(), email: email.trim().toLowerCase() }),
+      { maxAge: 60 * 60 * 24 * 7, path: '/', sameSite: 'lax' }
+    )
+  } catch {
+    // cookie errors are non-fatal
+  }
 
   const { error } = await supabase.from('guesses').insert({
     name: name.trim(),
@@ -35,11 +40,12 @@ export async function submitGuess(data: {
   })
 
   if (error) {
+    console.error('Supabase insert error:', error.code, error.message)
     if (error.code === '23505') {
-      return { success: false, error: 'already_guessed' }
+      return { error: 'already_guessed' }
     }
-    return { success: false, error: 'server_error' }
+    return { error: 'server_error' }
   }
 
-  return { success: true }
+  redirect('/thank-you')
 }
