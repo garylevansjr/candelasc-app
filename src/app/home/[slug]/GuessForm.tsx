@@ -1,9 +1,20 @@
 'use client'
 
-import { useState, useTransition } from 'react'
+import { useState } from 'react'
 import { useRouter } from 'next/navigation'
-import { submitGuess } from '@/app/actions'
+import { createClient } from '@supabase/supabase-js'
 import { SCENTS } from '@/lib/homes'
+
+const supabase = createClient(
+  process.env.NEXT_PUBLIC_SUPABASE_URL!,
+  process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
+)
+
+function saveUserCookie(name: string, email: string) {
+  const value = encodeURIComponent(JSON.stringify({ name, email }))
+  const expires = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toUTCString()
+  document.cookie = `candelasc_user=${value}; expires=${expires}; path=/; SameSite=Lax`
+}
 
 interface Props {
   propertySlug: string
@@ -14,36 +25,46 @@ export default function GuessForm({ propertySlug, initialUser }: Props) {
   const [selectedScent, setSelectedScent] = useState<string | null>(null)
   const [name, setName] = useState(initialUser?.name ?? '')
   const [email, setEmail] = useState(initialUser?.email ?? '')
-  const [status, setStatus] = useState<'idle' | 'error' | 'already_guessed'>('idle')
-  const [isPending, startTransition] = useTransition()
+  const [status, setStatus] = useState<'idle' | 'submitting' | 'error' | 'already_guessed'>('idle')
   const router = useRouter()
 
-  const canSubmit = Boolean(selectedScent && name.trim() && email.trim())
+  const canSubmit = Boolean(
+    selectedScent && name.trim() && email.trim() && status !== 'submitting'
+  )
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
-    if (!canSubmit) return
+    if (!canSubmit || !selectedScent) return
 
-    startTransition(async () => {
-      try {
-        const result = await submitGuess({
-          name,
-          email,
-          propertySlug,
-          scentGuess: selectedScent!,
-        })
-        if (result.success) {
-          router.push('/thank-you')
-        } else if (result.error === 'already_guessed') {
+    setStatus('submitting')
+
+    try {
+      const { error } = await supabase.from('guesses').insert({
+        name: name.trim(),
+        email: email.trim().toLowerCase(),
+        property_slug: propertySlug,
+        scent_guess: selectedScent,
+      })
+
+      if (error) {
+        if (error.code === '23505') {
           setStatus('already_guessed')
         } else {
+          console.error('Insert error:', error.code, error.message)
           setStatus('error')
         }
-      } catch {
-        setStatus('error')
+        return
       }
-    })
+
+      saveUserCookie(name.trim(), email.trim().toLowerCase())
+      router.push('/thank-you')
+    } catch (err) {
+      console.error('Submit error:', err)
+      setStatus('error')
+    }
   }
+
+  const isPending = status === 'submitting'
 
   return (
     <form onSubmit={handleSubmit} className="space-y-8">
@@ -126,7 +147,7 @@ export default function GuessForm({ propertySlug, initialUser }: Props) {
       {/* Submit */}
       <button
         type="submit"
-        disabled={!canSubmit || isPending}
+        disabled={!canSubmit}
         className="w-full py-4 bg-amber-500 hover:bg-amber-600 active:bg-amber-700 disabled:bg-gray-100 disabled:text-gray-400 text-white font-semibold rounded-2xl transition-colors text-base shadow-sm disabled:shadow-none"
       >
         {isPending ? 'Submitting…' : 'Submit My Guess'}
