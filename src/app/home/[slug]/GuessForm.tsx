@@ -5,11 +5,6 @@ import { useRouter } from 'next/navigation'
 import { createClient } from '@supabase/supabase-js'
 import { SCENTS } from '@/lib/homes'
 
-const supabase = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL!,
-  process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
-)
-
 function saveUserCookie(name: string, email: string) {
   const value = encodeURIComponent(JSON.stringify({ name, email }))
   const expires = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toUTCString()
@@ -39,6 +34,10 @@ export default function GuessForm({ propertySlug, initialUser }: Props) {
     setStatus('submitting')
 
     try {
+      const supabase = createClient(
+        process.env.NEXT_PUBLIC_SUPABASE_URL!,
+        process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
+      )
       const { error } = await supabase.from('guesses').insert({
         name: name.trim(),
         email: email.trim().toLowerCase(),
